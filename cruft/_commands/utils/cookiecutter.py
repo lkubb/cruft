@@ -60,11 +60,11 @@ def get_cookiecutter_repo(
     return repo
 
 
-def _validate_cookiecutter(cookiecutter_template_dir: Path):
+def _validate_cookiecutter(cookiecutter_template_dir: Path, jinja_var_start: str = "{{", jinja_var_end: str = "}}"):
     main_cookiecutter_directory: Optional[Path] = None
 
     for dir_item in cookiecutter_template_dir.glob("*cookiecutter.*"):
-        if dir_item.is_dir() and "{{" in dir_item.name and "}}" in dir_item.name:
+        if dir_item.is_dir() and jinja_var_start in dir_item.name and jinja_var_end in dir_item.name:
             main_cookiecutter_directory = dir_item
             break
 
@@ -80,9 +80,12 @@ def generate_cookiecutter_context(
     extra_context: Optional[Dict[str, Any]] = None,
     no_input: bool = False,
 ) -> CookiecutterContext:
-    _validate_cookiecutter(cookiecutter_template_dir)
 
     context_file = cookiecutter_template_dir / "cookiecutter.json"
+
+    if not context_file.exists():
+        raise UnableToFindCookiecutterTemplate(cookiecutter_template_dir)
+
     config_dict = get_user_config(
         config_file=str(config_file) if config_file else None, default_config=default_config
     )
@@ -92,6 +95,12 @@ def generate_cookiecutter_context(
         default_context=config_dict["default_context"],
         extra_context=extra_context,
     )
+
+    jinja_env = context.get("cookiecutter", {}).get("_jinja2_env_vars", {})
+    jinja_var_start = jinja_env.get("variable_start_string", "{{")
+    jinja_var_end = jinja_env.get("variable_end_string", "}}")
+
+    _validate_cookiecutter(cookiecutter_template_dir, jinja_var_start, jinja_var_end)
 
     # prompt the user to manually configure at the command line.
     # except when 'no-input' flag is set
