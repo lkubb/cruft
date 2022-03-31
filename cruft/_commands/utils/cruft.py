@@ -8,6 +8,10 @@ from cruft.exceptions import CruftAlreadyPresent, NoCruftFound
 
 CruftState = Dict[str, Any]
 
+CC_SPECIAL_VARS = [
+    '_extensions',
+]
+
 
 #######################
 # Cruft related utils #
@@ -37,3 +41,9 @@ def is_project_updated(repo: Repo, current_commit: str, latest_commit: str, stri
 def json_dumps(cruft_state: Dict[str, Any]) -> str:
     text = json.dumps(cruft_state, ensure_ascii=False, indent=2, separators=(",", ": "))
     return text + "\n"
+
+
+def clean_special_context(cruft_state: CruftState) -> CruftState:
+    for var in CC_SPECIAL_VARS:
+        if var in cruft_state["context"]["cookiecutter"]:
+            del cruft_state["context"]["cookiecutter"][var]

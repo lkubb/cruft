@@ -36,6 +36,7 @@ def update(
         return False
 
     cruft_state = json.loads(cruft_file.read_text())
+    utils.cruft.clean_special_context(cruft_state)
 
     with AltTemporaryDirectory() as tmpdir_:
         # Initial setup

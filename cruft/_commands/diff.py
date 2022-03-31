@@ -16,6 +16,7 @@ def diff(
     """Show the diff between the project and the linked Cookiecutter template"""
     cruft_file = utils.cruft.get_cruft_file(project_dir)
     cruft_state = json.loads(cruft_file.read_text())
+    utils.cruft.clean_special_context(cruft_state)
     checkout = checkout or cruft_state.get("commit")
 
     has_diff = False

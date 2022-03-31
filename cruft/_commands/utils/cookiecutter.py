@@ -1,3 +1,5 @@
+import sys
+
 from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
@@ -92,6 +94,9 @@ def generate_cookiecutter_context(
         default_context=config_dict["default_context"],
         extra_context=extra_context,
     )
+
+    # make sure local extensions can be loaded by cookiecutter
+    sys.path.append(str(cookiecutter_template_dir))
 
     # prompt the user to manually configure at the command line.
     # except when 'no-input' flag is set
