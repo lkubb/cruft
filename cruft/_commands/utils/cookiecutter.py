@@ -1,3 +1,5 @@
+import sys
+
 from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
@@ -101,6 +103,9 @@ def generate_cookiecutter_context(
     jinja_var_end = jinja_env.get("variable_end_string", "}}")
 
     _validate_cookiecutter(cookiecutter_template_dir, jinja_var_start, jinja_var_end)
+
+    # make sure local extensions can be loaded by cookiecutter
+    sys.path.append(str(cookiecutter_template_dir))
 
     # prompt the user to manually configure at the command line.
     # except when 'no-input' flag is set
