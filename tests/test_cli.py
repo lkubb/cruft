@@ -50,6 +50,18 @@ def cookiecutter_dir_hooked_git(tmpdir):
     )
 
 
+@pytest.fixture
+def cookiecutter_dir_input(tmpdir):
+    yield Path(
+        cruft.create(
+            "https://github.com/gmsantos/cookiecutter-test",
+            Path(tmpdir),
+            directory="dir",
+            checkout="input",
+        )
+    )
+
+
 def test_create(cruft_runner, tmpdir):
     result = cruft_runner(
         [
@@ -109,7 +121,9 @@ def test_check_stale(cruft_runner, cookiecutter_dir):
 
 
 def test_link(cruft_runner, cookiecutter_dir):
-    utils.cruft.get_cruft_file(cookiecutter_dir).unlink()
+    cruft_file = utils.cruft.get_cruft_file(cookiecutter_dir)
+    cruft_config_from_create = json.loads(cruft_file.read_text())
+    cruft_file.unlink()
     result = cruft_runner(
         [
             "link",
@@ -124,10 +138,16 @@ def test_link(cruft_runner, cookiecutter_dir):
     assert result.stdout == ""
     assert result.exit_code == 0
 
+    # compare the 2 .cruft.json
+    cruft_file = utils.cruft.get_cruft_file(cookiecutter_dir)
+    cruft_config_from_link = json.loads(cruft_file.read_text())
+    assert cruft_config_from_create == cruft_config_from_link
+
 
 def test_link_interactive(cruft_runner, cookiecutter_dir):
     cruft_file = utils.cruft.get_cruft_file(cookiecutter_dir)
-    commit = json.loads(cruft_file.read_text())["commit"]
+    cruft_config_from_create = json.loads(cruft_file.read_text())
+    commit = cruft_config_from_create["commit"]
     cruft_file.unlink()
     result = cruft_runner(
         [
@@ -142,6 +162,38 @@ def test_link_interactive(cruft_runner, cookiecutter_dir):
     )
     assert "Link to template at commit" in result.stdout
     assert result.exit_code == 0
+
+    # compare the 2 .cruft.json (except for the "project" key)
+    cruft_file = utils.cruft.get_cruft_file(cookiecutter_dir)
+    cruft_config_from_link = json.loads(cruft_file.read_text())
+    cruft_config_from_create["context"]["cookiecutter"].pop("project")
+    cruft_config_from_link["context"]["cookiecutter"].pop("project")
+    assert cruft_config_from_create == cruft_config_from_link
+
+
+def test_link_checkout(cruft_runner, cookiecutter_dir_updated):
+    cruft_file = utils.cruft.get_cruft_file(cookiecutter_dir_updated)
+    cruft_config_from_create = json.loads(cruft_file.read_text())
+    cruft_file.unlink()
+    result = cruft_runner(
+        [
+            "link",
+            "https://github.com/cruft/cookiecutter-test",
+            "--project-dir",
+            cookiecutter_dir_updated.as_posix(),
+            "-y",
+            "--directory",
+            "dir",
+            "--checkout",
+            "updated",
+        ]
+    )
+    assert result.exit_code == 0
+
+    # compare the 2 .cruft.json
+    cruft_file = utils.cruft.get_cruft_file(cookiecutter_dir_updated)
+    cruft_config_from_link = json.loads(cruft_file.read_text())
+    assert cruft_config_from_create == cruft_config_from_link
 
 
 def test_update_noop(cruft_runner, cookiecutter_dir):
@@ -316,6 +368,54 @@ def test_update_interactive_view_no_changes_when_deleted(cruft_runner, cookiecut
     assert result.exit_code == 0
     assert "There are no changes" in result.stdout
     assert "cruft has been updated" in result.stdout
+
+
+def test_update_same_commit_but_ask_for_input(cruft_runner, cookiecutter_dir_input):
+    result = cruft_runner(
+        ["update", "--project-dir", cookiecutter_dir_input.as_posix(), "-c", "input", "-y", "-i"],
+        input="\n\n",  # no input changes
+    )
+    assert "cruft has been updated" in result.stdout
+    assert result.exit_code == 0
+
+
+def test_update_with_input_changes(cruft_runner, cookiecutter_dir_input, capfd):
+    result = cruft_runner(
+        ["update", "--project-dir", cookiecutter_dir_input.as_posix(), "-c", "input", "-i"],
+        input="test\nnew-input\nv\ny\n",
+    )
+    git_diff_captured = capfd.readouterr()
+    assert "-Input from cookiecutter: some-input" in git_diff_captured.out
+    assert "+Input from cookiecutter: new-input" in git_diff_captured.out
+    assert "cruft has been updated" in result.stdout
+    assert result.exit_code == 0
+
+
+def test_update_new_inputs_added_to_template(cruft_runner, cookiecutter_dir_input, capfd):
+    result = cruft_runner(
+        ["update", "--project-dir", cookiecutter_dir_input.as_posix(), "-c", "input-updated", "-i"],
+        input="test\nsome-input\nnew-input-from-template\nv\ny\n",
+    )
+    git_diff_captured = capfd.readouterr()
+    assert "-Initial" in git_diff_captured.out
+    assert "+Updated" in git_diff_captured.out
+    assert "+New input added from template: new-input-from-template" in git_diff_captured.out
+    assert "cruft has been updated" in result.stdout
+    assert result.exit_code == 0
+
+
+def test_update_refresh_private_variables_from_template(
+    cruft_runner, cookiecutter_dir_input, capfd
+):
+    result = cruft_runner(
+        ["update", "--project-dir", cookiecutter_dir_input.as_posix(), "-c", "input-updated", "-r"],
+        input="v\ny\n",
+    )
+    git_diff_captured = capfd.readouterr()
+    assert "-Private variable: 1.0" in git_diff_captured.out
+    assert "+Private variable: 2.0" in git_diff_captured.out
+    assert "cruft has been updated" in result.stdout
+    assert result.exit_code == 0
 
 
 @pytest.mark.parametrize("args,expected_exit_code", [([], 0), (["--exit-code"], 1), (["-e"], 1)])

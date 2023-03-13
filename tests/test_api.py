@@ -65,6 +65,18 @@ def test_create_stores_checkout_value(value, tmpdir):
 
 
 @pytest.mark.parametrize("value", ["main", None])
+def test_link_stores_checkout_value(value, tmpdir):
+    project_dir = Path(tmpdir)
+    cruft.link(
+        "https://github.com/timothycrosley/cookiecutter-python",
+        project_dir=project_dir,
+        checkout=value,
+    )
+
+    assert json.load(utils.cruft.get_cruft_file(project_dir).open("r"))["checkout"] == value
+
+
+@pytest.mark.parametrize("value", ["main", None])
 def test_update_stores_checkout_value(value, tmpdir):
     tmpdir.chdir()
     cruft.create(
@@ -206,24 +218,24 @@ def test_diff_has_diff(
 
     assert stderr == ""
 
-    expected_output = """diff --git a{tmpdir}/dir0/file1 b{tmpdir}/dir0/file1
+    expected_output = """diff --git upstream-template-old{tmpdir}/dir0/file1 upstream-template-new{tmpdir}/dir0/file1
 index eaae237..ac3e272 100644
---- a{tmpdir}/dir0/file1
-+++ b{tmpdir}/dir0/file1
+--- upstream-template-old{tmpdir}/dir0/file1
++++ upstream-template-new{tmpdir}/dir0/file1
 @@ -1 +1 @@
 -new content 1
 +content1
-diff --git a{tmpdir}/file0 b{tmpdir}/file0
+diff --git upstream-template-old{tmpdir}/file0 upstream-template-new{tmpdir}/file0
 index be6a56b..1fc03a9 100644
---- a{tmpdir}/file0
-+++ b{tmpdir}/file0
+--- upstream-template-old{tmpdir}/file0
++++ upstream-template-new{tmpdir}/file0
 @@ -1 +1 @@
 -new content 0
 +content0
 """
     expected_output_regex = re.escape(expected_output)
     expected_output_regex = expected_output_regex.replace(r"\{tmpdir\}", r"([^\n]*)")
-    expected_output_regex = fr"^{expected_output_regex}$"
+    expected_output_regex = rf"^{expected_output_regex}$"
 
     match = re.search(expected_output_regex, stdout, re.MULTILINE)
     assert match is not None
@@ -273,8 +285,8 @@ def test_diff_checkout(capfd, tmpdir):
     stderr = captured.err
 
     assert stderr == ""
-    assert "--- a/README.md" in stdout
-    assert "+++ b/README.md" in stdout
+    assert "--- upstream-template-old/README.md" in stdout
+    assert "+++ upstream-template-new/README.md" in stdout
     assert "+Updated again" in stdout
     assert "-Updated" in stdout
 

@@ -17,6 +17,25 @@ OR
 Changelog
 =========
 
+## 2.12.0 - 28 December 2022
+- Uncapped version requirements (including Python) for greater compatiblity
+- [Fixed issue #166](https://github.com/cruft/cruft/issues/166): Fixed compatiblity with latest version of cookiecutter
+- [Implemented #184](https://github.com/cruft/cruft/issues/184): Store checkout parameter when using link command
+- Improvements to update command
+
+## 2.11.1 - 28 August 2022
+- [Fixed issue #177](https://github.com/cruft/cruft/issues/177): cruft update can't apply diffs when git's diff.mnemonicprefix config is set
+
+## 2.11.0 - 29 July 2022
+- [Fixed issue #168](https://github.com/cruft/cruft/issues/168): Add support for typer v0.6+
+- [Fixed issue #162](https://github.com/cruft/cruft/issues/162): Add support for cookiecutter v2
+
+## 2.10.2 - 20 Apr 2022
+- [Fixed issue #152](https://github.com/cruft/cruft/issues/152): Upgrade version of importlib-metadata
+
+## 2.10.1 - 8 Nov 2021
+- Fixed missing dependency on importlib-metadata
+
 ## 2.10.0 - 7 Nov 2021
 - [Fixed issue #41](https://github.com/cruft/cruft/issues/41): Add windows support
 - [Fixed issue #112](https://github.com/cruft/cruft/issues/112): Add support for generating the project with always skipped files on update

@@ -17,7 +17,7 @@ def test_get_diff_with_add(tmp_path: Path):
 
     diff = utils.diff.get_diff(repo0, repo1)
 
-    assert diff.startswith("diff --git a/file b/file")
+    assert diff.startswith("diff --git upstream-template-old/file upstream-template-new/file")
 
 
 def test_get_diff_with_delete(tmp_path: Path):
@@ -31,7 +31,7 @@ def test_get_diff_with_delete(tmp_path: Path):
 
     diff = utils.diff.get_diff(repo0, repo1)
 
-    assert diff.startswith("diff --git a/file b/file")
+    assert diff.startswith("diff --git upstream-template-old/file upstream-template-new/file")
 
 
 def test_get_diff_with_unicode(project_dir):
@@ -110,6 +110,6 @@ def test_remove_paths_with_glob_pattern_and_string(tmp_path: Path):
 
 
 def test_warn_if_cant_read_pyproject_toml(monkeypatch):
-    monkeypatch.setattr(utils.generate, "toml", None)
+    monkeypatch.setattr(utils.generate, "tomllib", None)
     with pytest.warns(UserWarning, match="`toml` package is not installed"):
         utils.generate._get_skip_paths({}, Path(__file__))

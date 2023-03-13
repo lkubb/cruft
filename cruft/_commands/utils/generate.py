@@ -1,5 +1,6 @@
 import os
 import stat
+import sys
 from pathlib import Path
 from shutil import move, rmtree
 from typing import Optional, Set, Union
@@ -12,10 +13,13 @@ from .cookiecutter import CookiecutterContext, generate_cookiecutter_context
 from .cruft import CruftState
 from .iohelper import AltTemporaryDirectory
 
-try:
-    import toml
-except ImportError:  # pragma: no cover
-    toml = None  # type: ignore
+if not sys.version_info >= (3, 11):
+    try:
+        import toml as tomllib
+    except ImportError:  # pragma: no cover
+        tomllib = None  # type: ignore
+else:
+    import tomllib
 
 
 def cookiecutter_template(
@@ -25,7 +29,7 @@ def cookiecutter_template(
     project_dir: Path = Path("."),
     cookiecutter_input: bool = False,
     checkout: Optional[str] = None,
-    deleted_paths: Set[Path] = None,
+    deleted_paths: Optional[Set[Path]] = None,
     update_deleted_paths: bool = False,
 ) -> CookiecutterContext:
     """Generate a clean cookiecutter template in output_dir."""
@@ -36,6 +40,7 @@ def cookiecutter_template(
 
     repo.head.reset(commit=commit, working_tree=True)
 
+    assert repo.working_dir is not None  # nosec B101 (allow assert for type checking)
     context = _generate_output(cruft_state, Path(repo.working_dir), cookiecutter_input, output_dir)
 
     # Get all paths that we are supposed to skip before generating the diff and applying updates
@@ -61,10 +66,16 @@ def _generate_output(
 ) -> CookiecutterContext:
     inner_dir = project_dir / (cruft_state.get("directory") or "")
 
+    # Don't pass entries prefixed by "_" = cookiecutter extensions, not direct user intent
+    extra_context = {
+        key: value
+        for key, value in cruft_state["context"]["cookiecutter"].items()
+        if not key.startswith("_")
+    }
     new_context = generate_cookiecutter_context(
         cruft_state["template"],
         inner_dir,
-        extra_context=cruft_state["context"]["cookiecutter"],
+        extra_context=extra_context,
         no_input=not cookiecutter_input,
     )
 
@@ -74,8 +85,7 @@ def _generate_output(
     # Therefore we have to move the directory content to the expected output_dir.
     # See https://github.com/cookiecutter/cookiecutter/pull/907
     output_dir.mkdir(parents=True, exist_ok=True)
-    with AltTemporaryDirectory() as tmpdir_:
-        tmpdir = Path(tmpdir_)
+    with AltTemporaryDirectory() as tmpdir:
 
         # Kindly ask cookiecutter to generate the template
         template_dir = generate_files(
@@ -97,13 +107,13 @@ def _generate_output(
 
 def _get_skip_paths(cruft_state: CruftState, pyproject_file: Path) -> Set[Path]:
     skip_cruft = cruft_state.get("skip", [])
-    if toml and pyproject_file.is_file():
-        pyproject_cruft = toml.loads(pyproject_file.read_text()).get("tool", {}).get("cruft", {})
+    if tomllib and pyproject_file.is_file():
+        pyproject_cruft = tomllib.loads(pyproject_file.read_text()).get("tool", {}).get("cruft", {})
         skip_cruft.extend(pyproject_cruft.get("skip", []))
     elif pyproject_file.is_file():
         warn(
-            "pyproject.toml is present in repo, but `toml` package is not installed. "
-            "Cruft configuration may be ignored."
+            "pyproject.toml is present in repo, but python version is < 3.11 and "
+            "`toml` package is not installed. Cruft configuration may be ignored."
         )
     return set(map(Path, skip_cruft))
 
